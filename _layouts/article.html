@@ -1,34 +1,13 @@
-<!DOCTYPE html>
-<html lang="pl-PL">
-	<head>
-		<meta charset="utf-8">
-		<title>{{ page.title }} – omniprojekt.pl</title>
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<meta name="robots" content="index, follow, archive">
-		<link rel="shortcut icon" href="/favicon.svg">
-		<link rel="stylesheet" href="/styles/syntax.css">
-	</head>
-	<body>
-        <h2>{{ page.title }}</h2>
+---
+layout: "default"
+---
 
-		{{ content }}
+<h2>{{ page.title }}</h2>
 
-		<br>
-		<footer>
-			<a href="/">Powrót do strony głównej</a>
-		</footer>
+{{ content }}
 
-		<script type="text/javascript">
-			var _paq = window._paq || [];
-			_paq.push(['trackPageView']);
-			_paq.push(['enableLinkTracking']);
-			(function() {
-				var u="https://analityka.toborek.info/";
-				_paq.push(['setTrackerUrl', u+'piwik.php']);
-				_paq.push(['setSiteId', '18']);
-				var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
-				g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
-			})();
-		</script>
-	</body>
-</html>
+<br>
+<nav>
+	<a href="/">Powrót do strony głównej</a>
+</nav>
+<br>
