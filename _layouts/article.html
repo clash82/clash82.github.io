@@ -2,14 +2,21 @@
 <html lang="pl-PL">
 	<head>
 		<meta charset="utf-8">
-		<title>{% if page.title != '' %}{{ page.title }} – {% endif %}omniprojekt.pl</title>
+		<title>{{ page.title }} – omniprojekt.pl</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="robots" content="index, follow, archive">
 		<link rel="shortcut icon" href="/favicon.svg">
 		<link rel="stylesheet" href="/styles/syntax.css">
 	</head>
 	<body>
+        <h2>{{ page.title }}</h2>
+
 		{{ content }}
+
+		<br>
+		<footer>
+			<a href="/">Powrót do strony głównej</a>
+		</footer>
 
 		<script type="text/javascript">
 			var _paq = window._paq || [];

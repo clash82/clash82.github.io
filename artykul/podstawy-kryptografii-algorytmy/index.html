@@ -1,6 +1,513 @@
 ---
-layout: "default"
+layout: "article"
 title: "Podstawy kryptografii: popularne algorytmy"
 ---
 
-Wkrótce to uzupełnię.
+Tworzenie algorytmów kryptograficznych - poza wielką satysfakcją - sprawia jednak wiele trudności. Poniżej znajduje się kilka funkcji kryptograficznych, które napisałem, aby umożliwić zaszyfrowanie dowolnej wiadomości. Funkcje te stworzyłem jeszcze podczas studiów, ale nie straciły one na aktualności i są dobrym początkiem do prac nad własnymi rozwiązaniami.
+<br>
+
+<h3>Tryb blokowy CBC</h3>
+
+CBC (Cipher Block Chaining), tryb szyfrowania wiadomości za pomocą szyfru blokowego, w którym przed zaszyfrowaniem każdy z bloków wiadomości jest przekształcany funkcją XOR z szyfrogramem, uzyskanym z szyfrowania poprzedniego bloku wiadomości. Pierwszy blok wiadomości jest szyfrowany za pomocą wylosowanego ciągu bitów (wektor inicjujący), dołączanego do wiadomości.
+<br><br>
+
+Poniższy algorytm napisany w języku <strong>Pascal</strong>, demonstruje działanie trybu blokowego CBC przy użycia dodatkowego autorskiego algorytmu PseudoDES opisanego w dalszej części tego artykułu.
+<br><br>
+
+{% highlight pascal %}
+function cbc(sTekst: string; sKlucz: string; byDlugoscBloku: byte; bOdszyfruj: boolean): string;
+
+var
+    iX, iY, iZ: integer;
+    sA, sB, sC, sD, sWektorInicjujacy: string;
+
+begin
+    case bOdszyfruj of
+    true:
+
+    // odszyfrowanie wiadomosci
+    begin
+        // wygenerowanie wektora inicjujacego (do szyfrowania wykorzystujemy
+        // przykladowy algorytm pseudoDES)
+        sWektorInicjujacy:= pseudoDES(Copy(sTekst, Length(sTekst)-byDlugoscBloku+1, byDlugoscBloku+1), sKlucz);
+
+        iX:= 0;
+        sA:= '';
+        sC:= '';
+        sB:= '';
+        repeat
+            inc(iX, byDlugoscBloku);
+            for iY:= iX-byDlugoscBloku+1 to iX do
+            if iY <= Length(sTekst)-byDlugoscBloku then
+                sC:= sC + sTekst[iY];
+            sC:= pseudoDES(sC, sKlucz);
+
+            iZ:= 0;
+            repeat
+                inc(iZ, 1);
+                sA:= sA + char(ord(sC[iZ]) xor ord(sWektorInicjujacy[iZ]));
+                sD:= sD + sc[iZ];
+            until (iZ = length(sc));
+
+            sB:= sB + sA;
+            sWektorInicjujacy:= sD;
+            sA:= '';
+            sC:= '';
+            sD:= '';
+        until (iX >= Length(sTekst)-byDlugoscBloku);
+        result:= sB;
+    end;
+
+    // zaszyfrowanie wiadomosci
+    false:
+    begin
+        Randomize;
+
+        // odczyt wektora inicjujacego
+        sWektorInicjujacy:= Copy(sTekst, Random(Length(sTekst)-byDlugoscBloku), byDlugoscBloku);
+
+        sA:= sWektorInicjujacy;
+        iX:= 0;
+        sC:= '';
+        sB:= '';
+        repeat
+            inc(iX, byDlugoscBloku);
+            iZ:= 0;
+            for iY:= iX-byDlugoscBloku+1 to iX do
+                if iY <= Length(sTekst) then
+                begin
+                    inc(iZ, 1);
+                    sC:= sC + char(ord(sTekst[iY]) xor ord(sA[iZ]));
+                end;
+            sB:= sB + pseudoDES(sC, sKlucz);
+            sA:= sC;
+            sC:= '';
+        until (iX >= Length(sTekst));
+        result:= sB + pseudoDES(sWektorInicjujacy, sKlucz);
+    end;
+    end;
+end;
+{% endhighlight %}
+
+<h3>Tryb blokowy ECB</h3>
+
+ECB (Electronic CodeBook), tryb elektronicznej książki kodowej jest to najprostszy tryb kodowania dużej wiadomości za pomocą szyfru blokowego. Wiadomość dzielimy na fragmenty odpowiadające wielkości bloku (M1, M2, M3, ..., Mn) i szyfrujemy każdy blok osobno: Ci = E(Mi). Do zaszyfrowania bloków można użyć dowolnego algorytmu kryptograficznego (np. Pseudo DES lub Vigenere opisanych w dalszej części).
+<br><br>
+
+Tryb ECB napisany w języku <strong>Pascal</strong>.
+<br><br>
+
+{% highlight pascal %}
+function ecb(sTekst: string; sKlucz: string; byDlugoscBloku: byte): string;
+
+var
+    iX, iY: integer;
+    sA, sB: string;
+
+begin
+    iX:= 0;
+    sA:= '';
+    sB:= '';
+    repeat
+        inc(iX, byDlugoscBloku);
+        for iY:= iX-byDlugoscBloku+1 to iX do
+            if iY <= Length(sTekst) then
+                sA:= sA+sTekst[iY];
+
+        // tutaj nastepuje szyfrowanie bloku przy uzyciu dowolnego
+        // algorytmu kryptograficznego (np. pseudoDES)
+        sB:= sB + pseudoDES(sA, sKlucz);
+
+        sA:= '';
+    until (iX >= Length(sTekst));
+    result:= sB;
+end;
+{% endhighlight %}
+<br>
+
+Tryb ECB napisany w <strong>PHP</strong>.
+<br><br>
+
+{% highlight php %}
+/**
+ * @param string $text tekst do przetworzenia
+ * @param string $key klucz
+ * @param int $block ilosc blokow
+ * @param bool $crypt szyfruj lub odszyfruj
+ *
+ * @return string
+ */
+function ecb($text, $key, $block, $crypt)
+{
+    $x = 0;
+    $a = '';
+    $b = '';
+
+    do {
+        $x += $block;
+        for ($y = $x-$block; $y < $x; $y++) {
+            if ($y <= strlen($text)) {
+                $a .= $text[$y];
+            }
+        }
+
+        // tutaj nastepuje szyfrowanie bloku przy uzyciu dowolnego
+        // algorytmu kryptograficznego (np. Vigenere)
+        $b .= vigenere($a, $key, $crypt);
+        $a = null;
+    } while ($x < strlen($text));
+
+    return $b;
+}
+{% endhighlight %}
+<br>
+
+Tryb ECB napisany w <strong>C#</strong>.
+<br><br>
+
+{% highlight csharp %}
+string ecb(string Text, string Key, int Block, bool Crypt)
+{
+    int x = 0;
+    int y = 0;
+    string a = string.Empty;
+    string b = string.Empty;
+
+    do
+    {
+        x += Block;
+        for (y = x - Block; y < x; y++)
+        {
+            if (y < Text.Length)
+            {
+                a += Text[y];
+            }
+        }
+
+        // tutaj nastepuje szyfrowanie bloku przy uzyciu dowolnego
+        // algorytmu kryptograficznego (np. Vigenere)
+        b += Vigenere(a, Key, Crypt);
+        a = null;
+    } while (x < Text.Length);
+
+    return b;
+}
+{% endhighlight %}
+
+<h3>Szyfr Cezara</h3>
+
+Nazwa szyfru pochodzi od Juliusza Cezara, rzymskiego wodza i polityka. Szyfrował on listy o znaczeniu wojskowym do swoich generałów, używając szyfru przesuwającego z przesunięciem 3. Z tego powodu niekiedy szyfrem Cezara określa się wyłącznie szyfr przesuwający o przesunięciu 3 (symetryczny), zaś termin "szyfr przesuwający" jest zarezerwowany dla przypadku ogólnego.
+<br><br>
+
+Poniższy algorytm napisany w języku <strong>Pascal</strong> umożliwa przesunięcie o dowolną ilość znaków.
+<br><br>
+
+{% highlight pascal %}
+function SzyfrujCezarem(bOdszyfruj: boolean; cZnak: char; iPrzesuniecie: integer): char;
+
+var
+    sTablicaZnakow: string;
+    iX, iY: byte;
+
+begin
+    // tablica znakow (w oryginalnej wersji 26 znakow lacinskich)
+    sTablicaZnakow:= '!@#$%^&*()-_=+[];,./?\|"ABCDEFGHIJKLMNOPQRSTUWXYZabcdefghijklmnopqrstuwxyz1234567890 ';
+
+    // w przypadku odszyfrowywania zmieniamy pozycje przesuniecia
+    if bOdszyfruj then iPrzesuniecie:= (length(sTablicaZnakow))-iPrzesuniecie;
+
+    iX:= ansipos(cZnak, sTablicaZnakow);
+    if iX <> 0 then
+    begin
+        if iX+iPrzesuniecie > length(sTablicaZnakow) then
+        begin
+            iY:= length(sTablicaZnakow)-iX;
+            iY:= iPrzesuniecie-iY;
+            result:= sTablicaZnakow[iY];
+        end
+        else
+            result:= sTablicaZnakow[iX+iPrzesuniecie];
+    end
+    else
+        result:= cZnak;
+end;
+{% endhighlight %}
+
+<h3>Prosta funkcja skrótu</h3>
+
+Zaprezentowana funkcja skrótu napisana w języku <strong>Pascal</strong> umożliwia wygenerowanie dowolnej długości ciąg znaków, zbudowany z wcześniej zadeklarowanej tablicy znakowej. Wykonana przeze mnie funkcja skrótu opiera się na porównywaniu wartości kodów ASCII wprowadzonych znaków oraz ich przesuwaniu względem obliczonej pozycji, wykorzystując przy tym zadeklarowaną tablicę znaków, z której ma zostać zbudowany hash. Testy, które przeprowadziłem na moim algorytmie, doprowadziły mnie do kilku wniosków:
+<br>
+
+<ul>
+    <li>większą skuteczność algorytmu osiąga się poprzez wprowadzenie minimum takiej ilości znaków, jaka ma powstać na wyjściu (w przypadku opisanego poniżej algorytmu jest to 16 znaków),</li>
+    <li>prędkość działania algorytmu uzależniona jest od długości tekstu, z którego ma być wygenerowany hash - im dłuższy tekst tym dłuższy czas operacji. Słabość ta niestety wyklucza algorytm do pracy z plikami w celu obliczania sum kontrolnych.</li>
+</ul>
+
+{% highlight pascal %}
+// funkcja pomocnicza, ktorej zadaniem jest pobranie znaku z tablicy przesunietego
+// o podana ilosc miejsc (szyfr Cezara)
+function _obliczPrzesuniecie(sTablica: string; cLitera: char; iPrzesuniecie: integer): char;
+
+var
+    iX, iY: integer;
+
+begin
+    iX:= AnsiPos(cLitera, sTablica);
+    if iX+iPrzesuniecie > Length(sTablica) then
+    begin
+        iY:= iX+iPrzesuniecie;
+        repeat
+            iY:= abs(Length(sTablica)-(iY));
+        until (iY < Length(sTablica));
+        if iY = 0 then
+        iY:= Length(sTablica);
+        result:= sTablica[iY];
+    end
+    else
+        result:= sTablica[iX+iPrzesuniecie];
+end;
+
+function utworzSkrot(sTekst: string): string;
+
+var
+    sTablica, sA, sB: string;
+    iIlosc, iX, iY: integer;
+
+begin
+    // ilosc znakow na wyjsciu funkcji
+    iIlosc:= 16;
+
+    // tablica znakow, z ktorych ma zostac wygenerowany skrot
+    sTablica:= 'ABCDEFGHIJKLMNOPQRSTUWXYZabcdefghijklmnopqrstuwxyz1234567890';
+
+    if Length(sTekst) <= iIlosc then
+    begin
+        sA:= sTekst;
+        repeat
+            sA:= sA + sTablica[Length(sA)];
+        until (Length(sA) > iIlosc);
+        sTekst:= sA;
+    end;
+
+    sA:= sTekst;
+    iY:= 1;
+    repeat
+        sB:= '';
+        for iX:= 1 to Length(sA)-1 do
+        begin
+            if Ord(sA[iX]) > Ord(sA[iX+1]) then
+            begin
+                iY:= iY+Ord(sA[iX]);
+                sB:= sB + _obliczPrzesuniecie(sTablica, _obliczPrzesuniecie(sTablica, sTablica[1], iY), Ord(sA[iX+1]))
+            end
+            else
+            begin
+                iY:= iY+Ord(sA[iX+1]);
+                sB:= sB + _obliczPrzesuniecie(sTablica, _obliczPrzesuniecie(sTablica, sTablica[1], iY), Ord(sA[iX]));
+            end;
+        end;
+        sA:= sB;
+    until (Length(sA) <= iIlosc);
+    result:= sA;
+end;
+{% endhighlight %}
+
+<h3>Szyfr Vigenere'a</h3>
+
+Jeden z pierwszych algorytmów kryptograficznych (symetryczny). Zasada działania opiera się na tablicy, w której każdy z wierszy odpowiada szyfrowi Cezara, przy czym w pierwszym wierszu przesunięcie wynosi 0, w drugim 1 itd. Aby zaszyfrować tekst potrzebne jest słowo kluczowe. Słowo kluczowe jest tajne i mówi, z którego wiersza (lub kolumny) należy w danym momencie skorzystać.
+<br><br>
+
+Szyfr Vigenere'a napisany w języku <strong>Pascal</strong>.
+<br><br>
+
+{% highlight pascal %}
+function SzyfrujVigenere(sTekst: string; sKlucz: string; bSzyfruj: boolean): string;
+
+var
+    iX, iY, iZ, iI: integer;
+    sTablicaZnakow, sWynik, sNowyKlucz: string;
+
+begin
+    // tablica znakow (w oryginalnej wersji 26 znakow lacinskich)
+    sTablicaZnakow:= '!@#$%^&*()-_=+[];,./?\|"ABCDEFGHIJKLMNOPQRSTUWXYZabcdefghijklmnopqrstuwxyz1234567890 ';
+
+    // obliczamy znak odwrotny na podstawie
+    // oryginalnego wzoru: K2(i) = 26 - K(i) mod 26
+    if not bszyfruj then
+    begin
+        for iI := 1 to length(sKlucz) do
+            sNowyKlucz := sNowyKlucz + sTablicaZnakow[(length(sTablicaZnakow) - ansipos(sKlucz[iI], sTablicaZnakow) + 2) mod length(sTablicaZnakow)];
+        sKlucz := sNowyKlucz;
+    end;
+
+    // jesli klucz jest krotszy od dlugosci tekstu
+    // uzupelniamy go o odpowiednia wielokrotnosc
+    sNowyKlucz := sKlucz;
+    if length(sTekst)>length(sKlucz) then
+        for iI := 0 to (length(sTekst) div length(sKlucz)) do
+            sNowyKlucz := sNowyKlucz + sKlucz;
+    sKlucz := sNowyKlucz;
+
+    for iI := 1 to length(sTekst) do
+    begin
+        iX := ansipos(sTekst[iI], sTablicaZnakow);
+        iY := ansipos(sKlucz[iI], sTablicaZnakow);
+
+        if (iX + iY > length(sTablicaZnakow)) then
+        begin
+            if iX + iY - length(sTablicaZnakow) - 1 <> 0 then
+                sWynik := sWynik + sTablicaZnakow[(iX + iY) - length(sTablicaZnakow) - 1]
+            else
+                sWynik := sWynik + sTablicaZnakow[length(sTablicaZnakow)];
+        end
+        else
+        sWynik := sWynik + sTablicaZnakow[iX + iY - 1];
+    end;
+
+    result := sWynik;
+end;
+{% endhighlight %}
+<br>
+
+Szyfr Vigenere'a napisany w <strong>PHP</strong>.
+<br><br>
+
+{% highlight php %}
+/**
+ * @param string $text tekst do zaszyfrowania
+ * @param string $key klucz szyfrujacy
+ * @param bool $crypt szyfruj lub odszyfruj tekst
+ *
+ * @return string
+ */
+function vigenere($text, $key, $crypt)
+{
+    $availableCharacters = "!@#$%^&*()-_=+[];,./?\|\"ABCDEFGHIJKLMNOPQRSTUWXYZabcdefghijklmnopqrstuwxyz1234567890 ";
+
+    // obliczamy znak odwrotny na podstawie
+    // oryginalnego wzoru: K2(i) = 26 - K(i) mod 26
+    if (!$crypt) {
+        $newKey = '';
+        for ($i = 0; $i < strlen($key); $i++) {
+            $newKey .= $availableCharacters[(strlen($availableCharacters) - strpos($availableCharacters, $key[$i]) + 2) % strlen($availableCharacters)];
+        }
+        $key = $newKey;
+    }
+
+    // jesli klucz jest krotszy od dlugosci tekstu
+    // uzupelniamy go o odpowiednia wielokrotnosc
+    $newKey = $key;
+    if (strlen($text) > strlen($key)) {
+        for ($i = 0; $i < strlen($text) / strlen($key); $i++) {
+            $newKey .= $key;
+        }
+    }
+    $key = $newKey;
+
+    $results = '';
+    for ($i = 0; $i < strlen($text); $i++) {
+        $x = strpos($availableCharacters, $text[$i]);
+        $y = strpos($availableCharacters, $key[$i]);
+
+        if ($x + $y > strlen($availableCharacters)) {
+            if ($x + $y - strlen($availableCharacters) != 0) {
+                $results .= $availableCharacters[$x + $y - strlen($availableCharacters) - 1];
+            } else {
+                $results .= $availableCharacters[strlen($availableCharacters)];
+            }
+        } else {
+            $results .= $availableCharacters[$x + $y - 1];
+        }
+    }
+
+    return $results;
+}
+{% endhighlight %}
+<br>
+
+Szyfr Vigenere'a napisany w <strong>C#</strong>.
+<br><br>
+
+{% highlight csharp %}
+string Vigenere(string Text, string Key, bool Crypt)
+{
+    int x;
+    int y;
+    string NewKey = string.Empty;
+    string Results = string.Empty;
+    string AvailableCharacters = "!@#$%^&*()-_=+[]:;,./?\\|\"ABCDEFGHIJKLMNOPQRSTUWXYZabcdefghijklmnopqrstuwxyz1234567890 ";
+
+    // obliczamy znak odwrotny na podstawie
+    // oryginalnego wzoru: K2(i) = 26 - K(i) mod 26
+    if (!Crypt)
+    {
+        for (int i = 0; i < Key.Length; i++)
+        {
+            NewKey += AvailableCharacters[(AvailableCharacters.Length - AvailableCharacters.IndexOf(Key[i]) + 2) % AvailableCharacters.Length];
+        }
+        Key = NewKey;
+    }
+
+    // jesli klucz jest krotszy od dlugosci tekstu
+    // uzupelniamy go o odpowiednia wielokrotnosc
+    NewKey = Key;
+    if (Text.Length > Key.Length)
+    {
+        for (int i = 0; i < Text.Length / Key.Length; i++)
+        {
+            NewKey += Key;
+        }
+    }
+    Key = NewKey;
+
+    for (int i = 0; i < Text.Length; i++)
+    {
+        x = AvailableCharacters.IndexOf(Text[i]);
+        y = AvailableCharacters.IndexOf(Key[i]);
+        if (x + y > AvailableCharacters.Length)
+        {
+            if (x + y - AvailableCharacters.Length != 0)
+            {
+                Results += AvailableCharacters[x + y - AvailableCharacters.Length - 1];
+            }
+            else
+            {
+                Results += AvailableCharacters[AvailableCharacters.Length];
+            }
+        }
+        else
+        {
+            Results += AvailableCharacters[x + y - 1];
+        }
+    }
+
+    return Results;
+}
+{% endhighlight %}
+
+<h3>Pseudo DES</h3>
+
+Prosty algorytm kryptograficzny (symetryczny) napisany w języku <strong>Pascal</strong>, którego zadaniem jest XOR-owanie dowolnego tekstu z kluczem. Proszę pamiętać, że ciąg znaków uzyskany na wyjściu jest w formacie ASCII. Odszyfrowanie następuję poprzez ponowne zaszyfrowanie tekstu z tym samym kluczem.
+<br><br>
+
+{% highlight pascal %}
+function pseudoDES(sTekst: string; sKlucz: string): string;
+
+var
+    iX, iY, iZ: integer;
+    sTekstZakodowany: string;
+
+begin
+    iY:= 0;
+    iX:= 0;
+    repeat
+        inc(iX, 1);
+        inc(iY, 1);
+        iZ:= ord(sKlucz[iX]) xor ord(sTekst[iY]);
+        sTekstZakodowany:= sTekstZakodowany + char(iZ);
+        if (iX = length(sKlucz)) then
+            iX:= 0;
+    until (iY = length(sTekst));
+    result:= sTekstZakodowany;
+end;
+{% endhighlight %}
