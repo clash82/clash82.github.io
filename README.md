@@ -1,1 +1,1 @@
-This is my company page. It's currently in Polish language only.
+This is my private IT-related-stuff page. It's currently in Polish language only.
