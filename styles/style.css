@@ -1,4 +1,12 @@
+body {
+    margin: 1em;
+}
+
 .utterances {
     margin-left: 0;
     margin-right: 0;
+}
+
+li {
+    margin-bottom: 1em;
 }
